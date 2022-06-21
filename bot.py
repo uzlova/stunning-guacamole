@@ -20,17 +20,17 @@ dp = Dispatcher(bot)
 
 
 def start_keyboard():
-    button = types.KeyboardButton("Определить город", request_location=True)
+    button = types.KeyboardButton("📍 Определить город", request_location=True)
     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True).add(button)
     return keyboard
 
 
 def keyboard():
     buttons = [
-        InlineKeyboardButton('Прогноз на 5 дней', callback_data='5_days'),
-        InlineKeyboardButton('Погода прямо сейчас', callback_data='today_weather')
+        '📊 Прогноз на 5 дней',
+        '📆 Погода сейчас'
     ]
-    keyboard = types.InlineKeyboardMarkup(resize_keyboard=True).add(*buttons)
+    keyboard = types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True).add(*buttons)
     return keyboard
 
 
@@ -89,15 +89,16 @@ def get_img(main: str, temp, feels_like):
         font=font2,
         fill=('#BDBDBD')
     )
-#    im.show()
+    #    im.show()
     im.save('img/del/1.jpg')
     return 0
 
 
+@dp.message_handler(lambda message: message.text == "📆 Погода сейчас")
 @dp.message_handler(content_types=['location'])
 async def handle_location(message: types.Message):
     weather_to_emoji = {
-        'clear': '☀️',  # это шедевр
+        'clear': '☀️',
         'clouds': '⛅️',
         'rain': '🌧'
 
@@ -105,11 +106,12 @@ async def handle_location(message: types.Message):
 
     month_list = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
                   'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря']
-
-    lat = message.location.latitude
-    lon = message.location.longitude
-
-    user_data[message.from_user.id] = (lat, lon)
+    try:
+        lat = message.location.latitude
+        lon = message.location.longitude
+        user_data[message.from_user.id] = (lat, lon)
+    except AttributeError:
+        lat, lon = user_data[message.from_user.id]
 
     d = get_weather(lat, lon)
     today = datetime.date.today()
@@ -119,16 +121,16 @@ async def handle_location(message: types.Message):
 
     get_img(d['main'], temp, feels_like)
 
-    forecast = "<b>{} \nСЕГОДНЯ, {}</b>\n" \
+    forecast = "<b>{} \nСегодня, {}</b>\n" \
                "\n<i>{} {}, <b>{}°</b>, ощущается как {}°\n" \
                "💨 Ветер {} м/с\n" \
                "💧 Влажность воздуха: {}%\n" \
-               "Атмосферное давление {} мм рт. ст.</i>".format(d['city'].upper(),
-                                                               f"{today.day} {month_list[today.month]}",
-                                                               weather_to_emoji[d['main'].lower()],
-                                                               d['description'].capitalize(), temp, feels_like,
-                                                               d['wind_speed'], d['humidity'],
-                                                               d['pressure'])
+               "🌫Атмосферное давление {} мм рт. ст.</i>".format(d['city'].upper(),
+                                                                 f"{today.day} {month_list[today.month - 1]}",
+                                                                 weather_to_emoji[d['main'].lower()],
+                                                                 d['description'].capitalize(), temp, feels_like,
+                                                                 d['wind_speed'], d['humidity'],
+                                                                 d['pressure'])
 
     await bot.send_photo(chat_id=message.chat.id, photo=InputFile('img/del/1.jpg'), caption=forecast,
                          reply_markup=keyboard())
@@ -140,8 +142,8 @@ async def start(message: types.Message):
     await message.answer(reply, reply_markup=start_keyboard())
 
 
-@dp.callback_query_handler(text="5_days")
-async def send_random_value(call: types.CallbackQuery):
+@dp.message_handler(lambda message: message.text == "📊 Прогноз на 5 дней")
+async def send_random_value(message: types.Message):
     weather_to_emoji = {
         'clear': '☀️',
         'clouds': '⛅️',
@@ -149,7 +151,7 @@ async def send_random_value(call: types.CallbackQuery):
 
     }
 
-    lat, lon = user_data[call.from_user.id]
+    lat, lon = user_data[message.from_user.id]
     link = f'http://api.openweathermap.org/data/2.5/forecast?lat={lat}&lon={lon}&appid={API_KEY}'
 
     response = requests.get(link, headers={'User-Agent': UserAgent().chrome})
@@ -175,12 +177,12 @@ async def send_random_value(call: types.CallbackQuery):
                    "\n<i>{} {}, <b>{}°</b>, ощущается как {}°\n" \
                    "💨 Ветер {} м/с\n" \
                    "💧 Влажность воздуха: {}%\n" \
-                   "Атмосферное давление {} мм рт. ст.</i>".format(f'{today.day} {month_list[today.month].upper()}',
-                                                                   weather_to_emoji[dict_1['main'].lower()],
-                                                                   dict_1['description'].capitalize(),
-                                                                   temp, feels_like, dict_1['wind_speed'],
-                                                                   dict_1['humidity'], dict_1['pressure'])
-        await bot.send_photo(chat_id=call.message.chat.id, photo=InputFile('img/del/1.jpg'), caption=forecast,
+                   "🌫Атмосферное давление {} мм рт. ст.</i>".format(f'{today.day} {month_list[today.month - 1]}',
+                                                                     weather_to_emoji[dict_1['main'].lower()],
+                                                                     dict_1['description'].capitalize(),
+                                                                     temp, feels_like, dict_1['wind_speed'],
+                                                                     dict_1['humidity'], dict_1['pressure'])
+        await bot.send_photo(chat_id=message.chat.id, photo=InputFile('img/del/1.jpg'), caption=forecast,
                              reply_markup=keyboard())
 
 
