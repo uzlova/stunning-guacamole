@@ -1,6 +1,8 @@
 import asyncio
 import datetime
 import logging
+import aioschedule
+
 import requests
 from PIL import Image, ImageFont, ImageDraw
 from aiogram import Bot, Dispatcher, executor, types, utils
@@ -186,5 +188,56 @@ async def send_random_value(message: types.Message):
                              reply_markup=keyboard())
 
 
+async def forecast_today():
+    weather_to_emoji = {
+        'clear': '☀️',
+        'clouds': '⛅️',
+        'rain': '🌧'
+
+    }
+    for id, coordinates in user_data.items():
+        lat, lon = coordinates
+        link = f'http://api.openweathermap.org/data/2.5/forecast?lat={lat}&lon={lon}&appid={API_KEY}'
+
+        response = requests.get(link, headers={'User-Agent': UserAgent().chrome})
+        q = response.json()
+
+        month_list = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+                      'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря']
+
+        d = q['list'][1]['dt_txt']
+
+        today = datetime.datetime.strptime(d, '%Y-%m-%d %H:%M:%S')
+        dict_1 = get_weather_forecast(lat, lon, 1)
+
+        temp = '+' + str(int(dict_1['temp'])) if dict_1['temp'] > 0 else dict_1['temp']
+        feels_like = '+' + str(int(dict_1['feels_like'])) if dict_1['feels_like'] > 0 else dict_1['feels_like']
+
+        get_img(dict_1['main'], temp, feels_like)
+
+        forecast = "<b>{}</b>\n" \
+                   "\n<i>{} {}, <b>{}°</b>, ощущается как {}°\n" \
+                   "💨 Ветер {} м/с\n" \
+                   "💧 Влажность воздуха: {}%\n" \
+                   "🌫Атмосферное давление {} мм рт. ст.</i>".format(f'{today.day} {month_list[today.month - 1]}',
+                                                                     weather_to_emoji[dict_1['main'].lower()],
+                                                                     dict_1['description'].capitalize(),
+                                                                     temp, feels_like, dict_1['wind_speed'],
+                                                                     dict_1['humidity'], dict_1['pressure'])
+        await bot.send_photo(chat_id=id, photo=InputFile('img/del/1.jpg'), caption=forecast,
+                             reply_markup=keyboard())
+
+
+async def scheduler():
+    aioschedule.every().day.at("00:13").do(forecast_today())
+    while True:
+        await aioschedule.run_pending()
+        await asyncio.sleep(1)
+
+
+async def on_startup(dp):
+    asyncio.create_task(scheduler())
+
+
 if __name__ == '__main__':
-    executor.start_polling(dp, skip_updates=True)
+    executor.start_polling(dp, skip_updates=True, on_startup=on_startup)
