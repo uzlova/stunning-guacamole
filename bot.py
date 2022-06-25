@@ -13,6 +13,8 @@ from fake_useragent import UserAgent
 API_TOKEN = 'token from @BotFather'
 API_KEY = 'key from openweathermap.org'
 user_data = {}
+loop = asyncio.get_event_loop()
+delay = 5.0
 # -------------------------------------------------------------------------------------- #
 
 logging.basicConfig(level=logging.INFO)
@@ -102,7 +104,8 @@ async def handle_location(message: types.Message):
     weather_to_emoji = {
         'clear': '☀️',
         'clouds': '⛅️',
-        'rain': '🌧'
+        'rain': '🌧',
+        'drizzle': '🌧'
 
     }
 
@@ -123,11 +126,11 @@ async def handle_location(message: types.Message):
 
     get_img(d['main'], temp, feels_like)
 
-    forecast = "<b>{} \nСегодня, {}</b>\n" \
+    forecast = "<b>🏘 {} \nСегодня, {}</b>\n" \
                "\n<i>{} {}, <b>{}°</b>, ощущается как {}°\n" \
                "💨 Ветер {} м/с\n" \
                "💧 Влажность воздуха: {}%\n" \
-               "🌫Атмосферное давление {} мм рт. ст.</i>".format(d['city'].upper(),
+               "🌫Атмосферное давление {} мм рт. ст.</i>".format(d['city'],
                                                                  f"{today.day} {month_list[today.month - 1]}",
                                                                  weather_to_emoji[d['main'].lower()],
                                                                  d['description'].capitalize(), temp, feels_like,
@@ -149,7 +152,8 @@ async def send_random_value(message: types.Message):
     weather_to_emoji = {
         'clear': '☀️',
         'clouds': '⛅️',
-        'rain': '🌧'
+        'rain': '🌧',
+        'drizzle': '🌧'
 
     }
 
@@ -188,11 +192,23 @@ async def send_random_value(message: types.Message):
                              reply_markup=keyboard())
 
 
+async def wait_until(dt):
+    # sleep until the specified datetime
+    now = datetime.datetime.now()
+    await asyncio.sleep((dt - now).total_seconds())
+
+
+async def run_at(dt, coro):
+    await wait_until(dt)
+    return await coro
+
+
 async def forecast_today():
     weather_to_emoji = {
         'clear': '☀️',
         'clouds': '⛅️',
-        'rain': '🌧'
+        'rain': '🌧',
+        'drizzle': '🌧'
 
     }
     for id, coordinates in user_data.items():
@@ -215,7 +231,7 @@ async def forecast_today():
 
         get_img(dict_1['main'], temp, feels_like)
 
-        forecast = "<b>{}</b>\n" \
+        forecast = "<b>Сегодня, {}</b>\n" \
                    "\n<i>{} {}, <b>{}°</b>, ощущается как {}°\n" \
                    "💨 Ветер {} м/с\n" \
                    "💧 Влажность воздуха: {}%\n" \
@@ -224,20 +240,16 @@ async def forecast_today():
                                                                      dict_1['description'].capitalize(),
                                                                      temp, feels_like, dict_1['wind_speed'],
                                                                      dict_1['humidity'], dict_1['pressure'])
+        when_to_call = loop.time() + delay  # delay -- промежуток времени в секундах.
+        loop.call_at(when_to_call, my_callback)
         await bot.send_photo(chat_id=id, photo=InputFile('img/del/1.jpg'), caption=forecast,
                              reply_markup=keyboard())
 
 
-async def scheduler():
-    aioschedule.every().day.at("00:13").do(forecast_today())
-    while True:
-        await aioschedule.run_pending()
-        await asyncio.sleep(1)
-
-
-async def on_startup(dp):
-    asyncio.create_task(scheduler())
+def my_callback():
+    asyncio.ensure_future(forecast_today())
 
 
 if __name__ == '__main__':
-    executor.start_polling(dp, skip_updates=True, on_startup=on_startup)
+    executor.start_polling(dp, skip_updates=True, on_startup=my_callback())
+
