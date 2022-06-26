@@ -2,13 +2,10 @@ import asyncio
 import datetime
 import logging
 from asyncio import sleep, get_event_loop
-
-import aioschedule
-
 import requests
 from PIL import Image, ImageFont, ImageDraw
 from aiogram import Bot, Dispatcher, executor, types, utils
-from aiogram.types import InputFile, InlineKeyboardButton
+from aiogram.types import InputFile
 from fake_useragent import UserAgent
 
 # -------------------------------------------------------------------------------------- #
