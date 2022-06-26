@@ -238,9 +238,9 @@ async def scheduled(wait: int):
             await bot.send_photo(chat_id=id, photo=InputFile('img/del/1.jpg'), caption=forecast,
                                  reply_markup=keyboard())
         # ожидаем день
-        await sleep(wait * 60)
+        await sleep(wait * 3600)
 
 
 if __name__ == '__main__':
-    get_event_loop().create_task(scheduled(3))
+    get_event_loop().create_task(scheduled(24))
     executor.start_polling(dp, skip_updates=True)
